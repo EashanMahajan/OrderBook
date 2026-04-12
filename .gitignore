@@ -41,3 +41,5 @@ frontend/build/
 
 # Locust
 locust_report/
+
+tests/

@@ -10,11 +10,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter()
 
-
-# ---------------------------------------------------------------------------
-# REST Endpoints (stubs — Phase 5)
-# ---------------------------------------------------------------------------
-
 @router.post("/orders", tags=["orders"])
 async def submit_order():
     """Submit a new limit or market order."""
@@ -37,11 +32,6 @@ async def get_orderbook():
 async def get_trades():
     """Return recent trade history."""
     return {"message": "Trade history — not yet implemented"}
-
-
-# ---------------------------------------------------------------------------
-# WebSocket Endpoint (stub — Phase 5)
-# ---------------------------------------------------------------------------
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
