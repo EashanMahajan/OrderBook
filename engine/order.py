@@ -90,6 +90,8 @@ class Order:
         """Mark order as cancelled."""
         if self.status == OrderStatus.FILLED:
             raise ValueError("Cannot cancel a fully filled order")
+        if self.status == OrderStatus.CANCELLED:
+            raise ValueError("Order is already cancelled")
         self.status = OrderStatus.CANCELLED
 
     def __lt__(self, other: Order) -> bool:

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, TYPE_CHECKING
 
 from engine.order import Order, OrderType, Side, Trade
 from engine.orderbook import OrderBook
+
+if TYPE_CHECKING:
+    from engine.redis_state import RedisStateManager
 
 
 class MatchingEngine:
@@ -20,10 +23,12 @@ class MatchingEngine:
         self,
         book: Optional[OrderBook] = None,
         on_trade: Optional[Callable[[Trade], None]] = None,
+        redis_state: Optional["RedisStateManager"] = None,
     ) -> None:
         self._book = book or OrderBook()
         self._trades: List[Trade] = []
         self._on_trade = on_trade
+        self._redis = redis_state
 
     def submit_order(self, order: Order) -> List[Trade]:
         """
@@ -43,8 +48,12 @@ class MatchingEngine:
         if order.remaining > 0:
             if order.order_type == OrderType.LIMIT:
                 self._book.add_order(order)
+                if self._redis:
+                    self._redis.save_order(order)
             else:
                 order.cancel()
+                if self._redis:
+                    self._redis.update_order(order)
 
         return trades
 
@@ -97,6 +106,11 @@ class MatchingEngine:
             trades.append(trade)
             self._trades.append(trade)
 
+            if self._redis:
+                self._redis.update_order(order)
+                self._redis.update_order(best)
+                self._redis.save_trade(trade)
+
             if self._on_trade:
                 self._on_trade(trade)
 
@@ -109,7 +123,10 @@ class MatchingEngine:
         Returns the cancelled Order. Raises KeyError if not found,
         ValueError if already filled.
         """
-        return self._book.cancel_order(order_id)
+        order = self._book.cancel_order(order_id)
+        if self._redis:
+            self._redis.update_order(order)
+        return order
 
     def get_order(self, order_id: str) -> Optional[Order]:
         """Look up an order by ID. Returns None if not found."""
