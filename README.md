@@ -78,7 +78,3 @@ order-book-simulator/
 | Frontend | React + D3.js |
 | Testing | pytest + Locust |
 | Deployment | Docker + AWS EC2 |
-
-## Status
-
-🚧 **Phase 1 complete** — Project structure, dependencies, core data structures, and test scaffold are in place.
