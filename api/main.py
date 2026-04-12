@@ -1,10 +1,3 @@
-"""
-main.py — FastAPI application entry point.
-
-Initializes the app, mounts routes, and provides a health-check endpoint
-to verify the server and dependencies are running.
-"""
-
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI

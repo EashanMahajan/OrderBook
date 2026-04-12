@@ -1,11 +1,3 @@
-"""
-routes.py — API route definitions.
-
-REST endpoints for order submission, cancellation, book snapshots,
-and trade history. WebSocket endpoint for real-time streaming.
-Stubs for now — will be wired to the matching engine in Phase 5.
-"""
-
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter()

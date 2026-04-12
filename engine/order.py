@@ -1,10 +1,3 @@
-"""
-order.py — Core data structures for the order book simulator.
-
-Defines the Order and Trade dataclasses that serve as the fundamental
-primitives throughout the system. Every other module depends on these.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
