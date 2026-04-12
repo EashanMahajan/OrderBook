@@ -9,11 +9,6 @@ import pytest
 
 from engine.order import Order, Trade, Side, OrderType, OrderStatus
 
-
-# ===================================================================
-# Order — Happy path
-# ===================================================================
-
 class TestOrderCreation:
     def test_limit_buy(self):
         order = Order(
@@ -57,11 +52,6 @@ class TestOrderCreation:
         ids = {o.order_id for o in orders}
         assert len(ids) == 100
 
-
-# ===================================================================
-# Order — Validation / edge cases
-# ===================================================================
-
 class TestOrderValidation:
     def test_reject_zero_quantity(self):
         with pytest.raises(ValueError, match="positive"):
@@ -88,11 +78,6 @@ class TestOrderValidation:
                 side=Side.BUY, order_type=OrderType.MARKET,
                 price=100, quantity=10,
             )
-
-
-# ===================================================================
-# Order — Fill behavior
-# ===================================================================
 
 class TestOrderFill:
     def test_full_fill(self):
@@ -142,11 +127,6 @@ class TestOrderFill:
         with pytest.raises(ValueError, match="positive"):
             order.fill(0)
 
-
-# ===================================================================
-# Order — Cancel behavior
-# ===================================================================
-
 class TestOrderCancel:
     def test_cancel_open_order(self):
         order = Order(
@@ -174,11 +154,6 @@ class TestOrderCancel:
         with pytest.raises(ValueError, match="filled"):
             order.cancel()
 
-
-# ===================================================================
-# Trade — Happy path
-# ===================================================================
-
 class TestTradeCreation:
     def test_basic_trade(self):
         trade = Trade(
@@ -202,11 +177,6 @@ class TestTradeCreation:
         ids = {t.trade_id for t in trades}
         assert len(ids) == 100
 
-
-# ===================================================================
-# Trade — Validation
-# ===================================================================
-
 class TestTradeValidation:
     def test_reject_zero_price(self):
         with pytest.raises(ValueError, match="positive"):
@@ -221,11 +191,6 @@ class TestTradeValidation:
                 buy_order_id="b", sell_order_id="s",
                 price=100, quantity=-1,
             )
-
-
-# ===================================================================
-# FastAPI health check
-# ===================================================================
 
 class TestHealthCheck:
     @pytest.fixture

@@ -15,10 +15,6 @@ from typing import Optional
 from ulid import ULID
 
 
-# ---------------------------------------------------------------------------
-# Enums — enforce valid values at creation time
-# ---------------------------------------------------------------------------
-
 class Side(str, Enum):
     """Order side — buy or sell."""
     BUY = "buy"
@@ -38,10 +34,6 @@ class OrderStatus(str, Enum):
     FILLED = "filled"
     CANCELLED = "cancelled"
 
-
-# ---------------------------------------------------------------------------
-# Order
-# ---------------------------------------------------------------------------
 
 @dataclass
 class Order:
@@ -118,10 +110,6 @@ class Order:
             return self.price < other.price
         return self.timestamp < other.timestamp
 
-
-# ---------------------------------------------------------------------------
-# Trade
-# ---------------------------------------------------------------------------
 
 @dataclass
 class Trade:
