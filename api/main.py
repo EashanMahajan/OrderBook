@@ -2,6 +2,9 @@ import asyncio
 import os
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+load_dotenv()  # Load .env before any other module reads os.getenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

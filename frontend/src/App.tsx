@@ -6,6 +6,7 @@ import { PriceChart } from './components/PriceChart'
 import { TradeFeed } from './components/TradeFeed'
 import { OrderEntry } from './components/OrderEntry'
 import { SimControl } from './components/SimControl'
+import { NLOrderEntry } from './components/NLOrderEntry'
 
 export default function App() {
   useMarketFeed()
@@ -43,8 +44,9 @@ export default function App() {
           <TradeFeed />
         </div>
 
-        {/* Right column bottom: order entry */}
-        <div style={{ overflow: 'auto' }}>
+        {/* Right column bottom: AI order entry stacked above manual entry */}
+        <div style={{ overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <NLOrderEntry />
           <OrderEntry />
         </div>
       </div>

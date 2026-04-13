@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, field_validator
 
+from api import ai as ai_module
 from api.ws_manager import manager
 from engine.order import Order, OrderType, Side
 from simulation.runner import SimulationConfig, create_simulation
@@ -235,6 +236,64 @@ async def stop_simulation(request: Request):
     request.app.state.simulation = None
 
     return {"running": False}
+
+
+@router.post("/ai/order", tags=["ai"])
+async def ai_order(request: Request):
+    """
+    Interpret a natural-language trading instruction and execute the orders.
+
+    Expects JSON body: {"instruction": "Buy 10 at market"}
+
+    Returns the list of executed orders and any trades, plus the reasoning
+    Claude used for each order.
+
+    Returns 503 if ANTHROPIC_API_KEY is not configured.
+    Returns 422 if the request body is missing the instruction field.
+    """
+    if not ai_module.is_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="AI features are unavailable: ANTHROPIC_API_KEY is not set.",
+        )
+
+    body = await request.json()
+    instruction: str = body.get("instruction", "").strip()
+    if not instruction:
+        raise HTTPException(status_code=422, detail="'instruction' field is required.")
+
+    engine = request.app.state.engine
+    snapshot = engine.snapshot()
+
+    try:
+        parsed_orders = await ai_module.interpret_instruction(instruction, snapshot)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"AI service error: {exc}")
+
+    results = []
+    for parsed in parsed_orders:
+        try:
+            order = Order(
+                side=Side(parsed["side"]),
+                order_type=OrderType(parsed["order_type"]),
+                quantity=parsed["quantity"],
+                price=parsed.get("price"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        trades = engine.submit_order(order)
+        results.append(
+            {
+                "order": _order_dict(order),
+                "trades": [_trade_dict(t) for t in trades],
+                "reasoning": parsed.get("reasoning", ""),
+            }
+        )
+
+    return {"results": results, "instruction": instruction}
 
 
 @router.get("/simulation/status", tags=["simulation"])

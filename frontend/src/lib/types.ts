@@ -46,3 +46,22 @@ export interface SimStatus {
 }
 
 export type ConnectionStatus = 'connecting' | 'live' | 'reconnecting' | 'disconnected'
+
+// Natural-language order entry
+
+export interface OrderResult {
+  order_id: string
+  side: string
+  order_type: string
+  price: number | null
+  quantity: number
+  remaining: number
+  status: string
+  timestamp: number
+}
+
+export interface NLOrderResult {
+  order: OrderResult
+  trades: Trade[]
+  reasoning: string
+}

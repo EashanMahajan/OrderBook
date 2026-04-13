@@ -11,6 +11,7 @@ export default defineConfig({
       '/trades': 'http://localhost:8000',
       '/simulation': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
+      '/ai': 'http://localhost:8000',
     },
   },
 })
