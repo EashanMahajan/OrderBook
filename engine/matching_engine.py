@@ -156,3 +156,11 @@ class MatchingEngine:
         snap["recent_trades"] = recent_trades
 
         return snap
+
+    def flush(self) -> None:
+        """Clear all orders and trades. syncs with Redis if connected."""
+        self._book.flush()
+        self._trades = []
+        if self._redis:
+            self._redis.flush()
+

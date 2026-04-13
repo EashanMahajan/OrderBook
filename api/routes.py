@@ -64,6 +64,13 @@ async def submit_order(body: OrderRequest, request: Request):
     Returns the created order and any trades that executed immediately.
     """
     engine = request.app.state.engine
+    limiter = request.app.state.limiter
+
+    # Rate limit: 10 orders per second per IP
+    # request.client is None when requests arrive through a proxy (e.g. Vite dev server)
+    client_ip = request.client.host if request.client else "proxy"
+    if not await limiter.is_allowed(client_ip, limit=10):
+        raise HTTPException(status_code=429, detail="Too many orders. Rate limit: 10/sec")
 
     try:
         order = Order(
@@ -91,6 +98,11 @@ async def cancel_order(order_id: str, request: Request):
     Returns 400 if the order is already fully filled.
     """
     engine = request.app.state.engine
+    limiter = request.app.state.limiter
+
+    client_ip = request.client.host if request.client else "proxy"
+    if not await limiter.is_allowed(client_ip, limit=10):
+        raise HTTPException(status_code=429, detail="Too many cancels. Rate limit: 10/sec")
 
     try:
         order = engine.cancel_order(order_id)

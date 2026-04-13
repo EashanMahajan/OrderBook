@@ -64,6 +64,13 @@ class OrderBook:
         self._asks: list[_AskEntry] = []
         self._orders: dict[str, Order] = {}
 
+    def flush(self) -> None:
+        """Clear all orders from the book."""
+        self._bids = []
+        self._asks = []
+        self._orders = {}
+
+
     @property
     def bid_count(self) -> int:
         """Number of live (open/partial) buy orders."""
