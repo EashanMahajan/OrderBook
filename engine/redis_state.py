@@ -1,12 +1,3 @@
-"""
-redis_state.py — Mirrors the in-memory order book into Redis for
-persistence and crash recovery.
-
-Orders are stored as hashes, price levels as sorted sets, and trades
-as an append-only list. The engine can function without Redis — this
-layer adds durability, not correctness.
-"""
-
 from __future__ import annotations
 
 import json
@@ -240,4 +231,3 @@ class RedisStateManager:
             levels[price]["order_count"] += 1
 
         return list(levels.values())
-

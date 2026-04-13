@@ -1,4 +1,5 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,6 +10,7 @@ from api.ws_manager import manager
 from engine.matching_engine import MatchingEngine
 from engine.order import Trade
 from engine.redis_state import RedisStateManager
+from simulation.runner import SimulationConfig, create_simulation
 
 
 async def _snapshot_loop(engine: MatchingEngine) -> None:
@@ -68,10 +70,25 @@ async def lifespan(app: FastAPI):
 
     app.state.engine = engine
     app.state.redis = redis_state
+    app.state.simulation = None
 
     broadcast_task = asyncio.create_task(_snapshot_loop(engine))
 
+    # Optional auto-start — set SIM_AUTO_START=true in the environment.
+    # SIM_TARGET_PRICE controls the price anchor (default $100).
+    if os.getenv("SIM_AUTO_START", "").lower() == "true":
+        target_price = float(os.getenv("SIM_TARGET_PRICE", "100.0"))
+        cfg = SimulationConfig(target_price=target_price)
+        runner = create_simulation(engine, cfg)
+        await runner.start()
+        app.state.simulation = runner
+        print(f"Simulation auto-started (target_price={target_price})")
+
     yield
+
+    # Shut down simulation before closing infrastructure
+    if app.state.simulation and app.state.simulation.is_running:
+        await app.state.simulation.stop()
 
     broadcast_task.cancel()
     try:
