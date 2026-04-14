@@ -74,6 +74,21 @@ export function SimControl() {
     }
   }
 
+  async function resetSim() {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/simulation/reset', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail ?? 'Reset failed')
+      setSimStatus({ running: false, agent_count: 0, agents: [] })
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Request failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const isRunning = simStatus?.running ?? false
 
   return (
@@ -183,6 +198,12 @@ export function SimControl() {
             >
               {loading ? 'Starting…' : '▶ Start Simulation'}
             </button>
+            <button
+              onClick={resetSim} disabled={loading}
+              style={{ ...resetBtn }}
+            >
+              Reset Book
+            </button>
           </div>
         </>
       ) : (
@@ -236,6 +257,12 @@ export function SimControl() {
           >
             {loading ? 'Stopping…' : '■ Stop Simulation'}
           </button>
+          <button
+            onClick={resetSim} disabled={loading}
+            style={{ ...resetBtn }}
+          >
+            Reset Book
+          </button>
         </>
       )}
 
@@ -273,4 +300,10 @@ const actionBtn: React.CSSProperties = {
 const linkBtn: React.CSSProperties = {
   background: 'none', border: 'none', cursor: 'pointer',
   color: '#475569', fontFamily: 'monospace', fontSize: '0.75rem', padding: 0,
+}
+
+const resetBtn: React.CSSProperties = {
+  padding: '0.4rem', border: '1px solid #334155', borderRadius: 4, cursor: 'pointer',
+  background: 'transparent', color: '#64748b', fontFamily: 'monospace',
+  fontSize: '0.75rem', width: '100%', marginTop: '0.25rem',
 }

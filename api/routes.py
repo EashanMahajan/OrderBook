@@ -240,6 +240,23 @@ async def stop_simulation(request: Request):
     return {"running": False}
 
 
+@router.post("/simulation/reset", tags=["simulation"])
+async def reset_simulation(request: Request):
+    """
+    Stop the simulation (if running) and flush all orders and trade history.
+
+    The RL agent training session and checkpoint are intentionally preserved
+    so training progress survives a reset.
+    """
+    runner = request.app.state.simulation
+    if runner and runner.is_running:
+        await runner.stop()
+        request.app.state.simulation = None
+
+    request.app.state.engine.flush()
+    return {"reset": True, "running": False}
+
+
 @router.post("/ai/order", tags=["ai"])
 async def ai_order(request: Request):
     """
