@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+*.pyo
+.env
+.git
+.gitignore
+frontend/node_modules
+rl/checkpoints
+tests/
+*.md

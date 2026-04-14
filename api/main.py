@@ -5,8 +5,11 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 load_dotenv()  # Load .env before any other module reads os.getenv()
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from api.rate_limiter import RateLimiter
 from api.routes import router
@@ -110,3 +113,11 @@ app.include_router(router)
 async def health_check():
     """Health check endpoint — verifies the server is alive."""
     return {"status": "ok", "service": "order-book-simulator"}
+
+
+# Serve the Vite build as a SPA.  Mount last so all /api/* routes above take
+# priority.  Conditional so `uvicorn api.main:app --reload` still works in dev
+# before the frontend has been built.
+_dist = Path("frontend/dist")
+if _dist.exists():
+    app.mount("/", StaticFiles(directory=str(_dist), html=True), name="static")

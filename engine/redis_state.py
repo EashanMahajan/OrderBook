@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Optional
 
 import redis
@@ -30,9 +31,12 @@ class RedisStateManager:
         Connect to Redis. Pass an existing client for testing,
         or let the manager create its own connection.
         """
-        self._r = client or redis.Redis(
-            host=host, port=port, db=db, decode_responses=True
-        )
+        if client:
+            self._r = client
+        elif (url := os.getenv("REDIS_URL")):
+            self._r = redis.Redis.from_url(url, decode_responses=True)
+        else:
+            self._r = redis.Redis(host=host, port=port, db=db, decode_responses=True)
 
         self.KEY_BIDS = "book:bids"
         self.KEY_ASKS = "book:asks"

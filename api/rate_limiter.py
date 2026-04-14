@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from typing import Optional
 
@@ -34,7 +35,12 @@ class RateLimiter:
     ) -> None:
         self._client: Optional[redis.Redis] = None
         try:
-            client = redis.Redis(host=host, port=port, db=db, decode_responses=True)
+            url = os.getenv("REDIS_URL")
+            client = (
+                redis.Redis.from_url(url, decode_responses=True)
+                if url
+                else redis.Redis(host=host, port=port, db=db, decode_responses=True)
+            )
             client.ping()
             self._client = client
         except Exception:
