@@ -54,6 +54,7 @@ async def lifespan(app: FastAPI):
     app.state.redis = redis_state
     app.state.limiter = limiter
     app.state.simulation = None
+    app.state.rl_session = None
 
     broadcast_task = asyncio.create_task(_snapshot_loop(engine))
 
@@ -72,6 +73,9 @@ async def lifespan(app: FastAPI):
     # Shut down simulation before closing infrastructure
     if app.state.simulation and app.state.simulation.is_running:
         await app.state.simulation.stop()
+
+    if app.state.rl_session and app.state.rl_session.running:
+        await app.state.rl_session.stop()
 
     broadcast_task.cancel()
     try:

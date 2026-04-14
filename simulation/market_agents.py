@@ -1,24 +1,3 @@
-"""
-market_agents.py — Synthetic market participants for simulation mode.
-
-Three agent types generating realistic order flow:
-  NoiseTrader    — random limit orders for volume; mean-reverts toward target_price
-  MarketMaker    — continuous two-sided quotes; handles being "run over" gracefully
-  MomentumTrader — follows recent trade direction; overrides to mean-revert on large drifts
-
-Technical guarantees
---------------------
-Latency       MarketMaker and MomentumTrader tick every 25 ms, ensuring book changes
-              are observed and acted on within <50 ms.
-Stability     MarketMaker's cancel-before-requote path catches KeyError/ValueError
-              silently — a failed cancel means the quote was filled, which is normal.
-              Both market makers and momentum traders carry a target_price anchor that
-              prevents the mid-price from drifting to zero or infinity.
-Configurability
-              Every agent accepts target_price plus agent-specific knobs. Defaults are
-              chosen for a $100 instrument but all are overridable at construction time.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -32,6 +11,19 @@ from engine.matching_engine import MatchingEngine
 from engine.order import Order, OrderStatus, OrderType, Side
 
 logger = logging.getLogger(__name__)
+
+# Lazy imports for RL to avoid hard dependency when not used
+_rl_available: bool | None = None
+
+def _check_rl() -> bool:
+    global _rl_available
+    if _rl_available is None:
+        try:
+            import torch  # noqa: F401
+            _rl_available = True
+        except ImportError:
+            _rl_available = False
+    return _rl_available
 
 
 # ---------------------------------------------------------------------------
@@ -385,4 +377,98 @@ class MomentumTrader(BaseAgent):
         elapsed = time.monotonic() - self._last_trade_ts
         s["cooldown_remaining_s"] = round(max(0.0, self.cooldown - elapsed), 2)
         s["drift_tolerance_pct"] = round(self.drift_tolerance * 100, 2)
+        return s
+
+
+# ---------------------------------------------------------------------------
+# Step 5 — RLAgent (inference-only, trained DQN)
+# ---------------------------------------------------------------------------
+
+class RLAgent(BaseAgent):
+    """
+    Runs the trained DQN policy in inference mode against the live book.
+
+    No gradient updates happen here — training is handled separately by
+    TrainingSession.  The agent reuses TradingEnv for observation building
+    and order execution so the live behaviour exactly matches training.
+
+    Episode semantics: the agent runs continuous episodes.  When the position
+    limit is hit (or after max_steps ticks), the env resets (pending orders
+    are cancelled, position/cash zeroed) and a new episode begins.  Cumulative
+    PnL across episodes is tracked and reported via status().
+
+    If no checkpoint exists the agent ticks silently without trading until
+    one becomes available on the next episode reset.
+    """
+
+    _ACTION_NAMES = ["hold", "buy_mkt", "sell_mkt", "buy_lim", "sell_lim", "cancel"]
+
+    def __init__(
+        self,
+        engine: MatchingEngine,
+        name: str = "rl",
+        target_price: float = 100.0,
+        tick_interval: float = 0.025,
+        max_steps_per_episode: int = 500,
+    ) -> None:
+        super().__init__(engine, name, target_price, tick_interval)
+
+        if not _check_rl():
+            raise RuntimeError("RLAgent requires torch — run: pip install torch")
+
+        from rl.agent import DQNAgent
+        from rl.env import TradingEnv
+        from rl.train import CHECKPOINT_FILE
+
+        self._env = TradingEnv(engine, target_price=target_price, max_steps=max_steps_per_episode)
+        self._dqn = DQNAgent()
+        self._ready = False
+        self._ckpt_path = CHECKPOINT_FILE
+
+        self._last_action: int = 0
+        self._total_episodes: int = 0
+        self._episode_pnl: float = 0.0
+        self._cumulative_pnl: float = 0.0
+
+        self._try_load()
+        self._env.reset()
+
+    def _try_load(self) -> None:
+        if self._ckpt_path.exists():
+            try:
+                self._dqn.load(str(self._ckpt_path))
+                self._ready = True
+                logger.info("[%s] Loaded RL checkpoint", self.name)
+            except Exception as exc:
+                logger.warning("[%s] Could not load checkpoint: %s", self.name, exc)
+        else:
+            logger.warning("[%s] No checkpoint found — sitting idle until trained", self.name)
+
+    async def tick(self) -> None:
+        # Retry loading checkpoint each episode if not yet ready
+        if not self._ready:
+            self._try_load()
+            if not self._ready:
+                return
+
+        obs = self._env._observe()
+        action = self._dqn.select_action(obs, exploit=True)
+        _, reward, done, info = self._env.step(action)
+
+        self._last_action = action
+        self._episode_pnl = info["mtm"]
+
+        if done:
+            self._cumulative_pnl += self._episode_pnl
+            self._total_episodes += 1
+            self._env.reset()
+
+    def status(self) -> dict:
+        s = super().status()
+        s["last_action"] = self._ACTION_NAMES[self._last_action]
+        s["position"] = round(self._env.position, 2)
+        s["episode_pnl"] = round(self._episode_pnl, 4)
+        s["cumulative_pnl"] = round(self._cumulative_pnl, 4)
+        s["total_episodes"] = self._total_episodes
+        s["ready"] = self._ready
         return s

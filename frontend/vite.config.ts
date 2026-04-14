@@ -12,6 +12,7 @@ export default defineConfig({
       '/simulation': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
       '/ai': 'http://localhost:8000',
+      '/rl': 'http://localhost:8000',
     },
   },
 })

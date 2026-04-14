@@ -3,10 +3,6 @@ from typing import Any
 
 import anthropic
 
-# ---------------------------------------------------------------------------
-# Tool schema
-# ---------------------------------------------------------------------------
-
 SUBMIT_ORDER_TOOL: dict[str, Any] = {
     "name": "submit_order",
     "description": (
@@ -52,10 +48,6 @@ SUBMIT_ORDER_TOOL: dict[str, Any] = {
     },
 }
 
-# ---------------------------------------------------------------------------
-# System prompt  (static — will be cached after the first request)
-# ---------------------------------------------------------------------------
-
 _SYSTEM_PROMPT = """\
 You are a trading assistant that converts natural-language instructions into \
 structured orders for a simulated limit order book.
@@ -75,12 +67,7 @@ least once.
 5. Do NOT output any text outside of tool calls.\
 """
 
-# ---------------------------------------------------------------------------
-# Lazy async client singleton
-# ---------------------------------------------------------------------------
-
 _client: anthropic.AsyncAnthropic | None = None
-
 
 def _get_client() -> anthropic.AsyncAnthropic:
     global _client
@@ -95,11 +82,6 @@ def _get_client() -> anthropic.AsyncAnthropic:
 def is_configured() -> bool:
     """Return True if the API key is present in the environment."""
     return bool(os.getenv("ANTHROPIC_API_KEY"))
-
-
-# ---------------------------------------------------------------------------
-# Context builder
-# ---------------------------------------------------------------------------
 
 def _build_context(snapshot: dict) -> str:
     """Format the live book snapshot into a compact string for the user turn."""
@@ -131,11 +113,6 @@ def _build_context(snapshot: dict) -> str:
     lines.append(f"  bid levels: {len(bids)}   ask levels: {len(asks)}")
 
     return "\n".join(lines)
-
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 async def interpret_instruction(
     instruction: str,

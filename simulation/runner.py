@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from engine.matching_engine import MatchingEngine
-from simulation.market_agents import BaseAgent, MarketMaker, MomentumTrader, NoiseTrader
+from simulation.market_agents import BaseAgent, MarketMaker, MomentumTrader, NoiseTrader, RLAgent
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +92,7 @@ class SimulationConfig:
     market_makers: int = 1
     noise_traders: int = 2
     momentum_traders: int = 1
+    rl_agents: int = 0              # set to 1 to include the trained DQN agent
 
     # MarketMaker knobs
     mm_spread: float = 0.004        # full spread as fraction of price
@@ -153,5 +154,16 @@ def create_simulation(
             trade_qty=cfg.momentum_trade_qty,
             lookback=cfg.momentum_lookback,
         ))
+
+    for i in range(cfg.rl_agents):
+        suffix = f"-{i + 1}" if cfg.rl_agents > 1 else ""
+        try:
+            agents.append(RLAgent(
+                engine=engine,
+                name=f"rl{suffix}",
+                target_price=cfg.target_price,
+            ))
+        except RuntimeError as exc:
+            logger.warning("Skipping RLAgent: %s", exc)
 
     return SimulationRunner(agents)

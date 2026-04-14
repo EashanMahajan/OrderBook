@@ -184,6 +184,7 @@ class SimulationStartRequest(BaseModel):
     momentum_drift_tolerance: float = Field(default=0.03, gt=0, lt=1.0, description="Drift fraction from target_price that triggers mean-reversion")
     momentum_trade_qty: float = Field(default=5.0, gt=0)
     momentum_lookback: int = Field(default=10, ge=2, le=100)
+    rl_agents: int = Field(default=0, ge=0, le=1, description="Include trained DQN agent (requires checkpoint)")
 
 
 @router.post("/simulation/start", tags=["simulation"], status_code=201)
@@ -203,6 +204,7 @@ async def start_simulation(body: SimulationStartRequest, request: Request):
         market_makers=body.market_makers,
         noise_traders=body.noise_traders,
         momentum_traders=body.momentum_traders,
+        rl_agents=body.rl_agents,
         mm_spread=body.mm_spread,
         mm_quote_qty=body.mm_quote_qty,
         noise_qty_max=body.noise_qty_max,
@@ -310,3 +312,76 @@ async def simulation_status(request: Request):
         return {"running": False, "agent_count": 0, "agents": []}
 
     return runner.status()
+
+
+# ---------------------------------------------------------------------------
+# RL training endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/rl/train/start", tags=["rl"], status_code=201)
+async def rl_train_start(request: Request):
+    """
+    Start a DQN training session against the live engine.
+
+    Training runs in a background thread so it never blocks the event loop.
+    Returns 409 if training is already in progress.
+    Returns 400 if no simulation is running (no market liquidity to train against).
+    """
+    if not (request.app.state.simulation and request.app.state.simulation.is_running):
+        raise HTTPException(
+            status_code=400,
+            detail="Start the market simulation first so the agent has a liquid book to train against.",
+        )
+
+    session = request.app.state.rl_session
+    if session and session.running:
+        raise HTTPException(status_code=409, detail="RL training is already running.")
+
+    from rl.train import TrainingSession
+
+    engine = request.app.state.engine
+    target_price = 100.0
+    for agent_status in request.app.state.simulation.status().get("agents", []):
+        if "target_price" in agent_status:
+            target_price = agent_status["target_price"]
+            break
+
+    session = TrainingSession(engine, target_price=target_price)
+    await session.start()
+    request.app.state.rl_session = session
+    return session.status()
+
+
+@router.post("/rl/train/stop", tags=["rl"])
+async def rl_train_stop(request: Request):
+    """Stop the running DQN training session. Returns 400 if not training."""
+    session = request.app.state.rl_session
+    if not session or not session.running:
+        raise HTTPException(status_code=400, detail="No RL training session is running.")
+
+    await session.stop()
+    return session.status()
+
+
+@router.get("/rl/status", tags=["rl"])
+async def rl_status(request: Request):
+    """Return current RL training statistics and checkpoint info."""
+    from rl.train import CHECKPOINT_FILE
+
+    session = request.app.state.rl_session
+    if not session:
+        return {
+            "running": False,
+            "episode": 0,
+            "total_steps": 0,
+            "last_episode_reward": 0.0,
+            "best_reward": None,
+            "last_loss": 0.0,
+            "epsilon": 1.0,
+            "buffer_size": 0,
+            "checkpoint_exists": CHECKPOINT_FILE.exists(),
+        }
+
+    status = session.status()
+    status["checkpoint_exists"] = CHECKPOINT_FILE.exists()
+    return status

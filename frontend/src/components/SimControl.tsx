@@ -9,6 +9,7 @@ const defaultConfig = {
   market_makers: 1,
   noise_traders: 2,
   momentum_traders: 1,
+  rl_agents: 0,
   mm_spread: 0.004,
   mm_quote_qty: 10,
   noise_qty_max: 15,
@@ -110,6 +111,28 @@ export function SimControl() {
               </Field>
             </div>
 
+            {/* RL agent toggle */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <div
+                onClick={() => setConfig((c) => ({ ...c, rl_agents: c.rl_agents ? 0 : 1 }))}
+                style={{
+                  width: 36, height: 20, borderRadius: 10, position: 'relative', cursor: 'pointer',
+                  background: config.rl_agents ? '#7c3aed' : '#1e293b',
+                  border: '1px solid #334155', transition: 'background 0.2s',
+                }}
+              >
+                <div style={{
+                  position: 'absolute', top: 2, left: config.rl_agents ? 16 : 2,
+                  width: 14, height: 14, borderRadius: '50%',
+                  background: config.rl_agents ? '#fff' : '#475569',
+                  transition: 'left 0.2s',
+                }} />
+              </div>
+              <span style={{ fontSize: '0.72rem', color: config.rl_agents ? '#c4b5fd' : '#475569' }}>
+                RL Agent {config.rl_agents ? '(requires checkpoint)' : ''}
+              </span>
+            </label>
+
             {/* Advanced */}
             <button
               type="button"
@@ -185,6 +208,23 @@ export function SimControl() {
                   )}
                   {agent.ask_id && (
                     <span>ask: <span style={{ color: '#ef4444' }}>active</span></span>
+                  )}
+                  {/* RL agent extras */}
+                  {(agent as any).last_action !== undefined && (
+                    <span>action: <span style={{ color: '#a78bfa' }}>{(agent as any).last_action}</span></span>
+                  )}
+                  {(agent as any).position !== undefined && (
+                    <span>pos: <span style={{
+                      color: (agent as any).position > 0 ? '#4ade80' : (agent as any).position < 0 ? '#f87171' : '#94a3b8'
+                    }}>{(agent as any).position}</span></span>
+                  )}
+                  {(agent as any).episode_pnl !== undefined && (
+                    <span>ep PnL: <span style={{
+                      color: (agent as any).episode_pnl >= 0 ? '#4ade80' : '#f87171'
+                    }}>{(agent as any).episode_pnl.toFixed(2)}</span></span>
+                  )}
+                  {(agent as any).ready === false && (
+                    <span style={{ color: '#f59e0b' }}>⚠ no checkpoint</span>
                   )}
                 </div>
               </div>
